@@ -1,0 +1,1126 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>冰圓屋｜雲端POS點餐系統</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入 Google Fonts 日系文青字體 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      max-width: 100vw;
+      overflow-x: hidden;
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #F7F3EE;
+      color: #4A3B32;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-panel { animation: fadeSlideUp 0.22s ease-out forwards; }
+    .btn-press:active { transform: scale(0.97); }
+    
+    /* 網路狀態提示條 */
+    #offlineIndicator {
+      display: none;
+      background-color: #F5D6D4;
+      color: #C85A53;
+      text-align: center;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 4px;
+      transition: all 0.3s ease;
+    }
+    body.is-offline #offlineIndicator { display: block; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-[#E8DFD5] selection:text-[#4A3B32]">
+
+  <div id="offlineIndicator">⚠️ 目前處於離線狀態，訂單已暫存在設備中，網路恢復時將自動上傳。</div>
+
+  <!-- 頂部導覽列 -->
+  <header class="sticky top-0 z-30 bg-[#FFFFFF]/95 backdrop-blur-md border-b border-[#E8DFD5] shadow-sm w-full">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
+      <!-- 品牌識別 -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#9C7B63] text-white flex items-center justify-center font-black text-lg sm:text-xl shadow-sm">冰</div>
+          <div>
+            <h1 class="text-lg sm:text-xl font-black tracking-widest text-[#6D523E] leading-tight flex items-center gap-2">
+              冰圓屋 
+              <span id="syncStatus" class="inline-flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="雲端同步中"></span>
+            </h1>
+            <p class="text-[11px] text-[#8C7A6B] tracking-wide">雲端點餐與備料系統</p>
+          </div>
+        </div>
+        <!-- 手機版快速查看購物車按鈕 -->
+        <button id="mobileHeaderCartBtn" onclick="window.scrollToCart()" class="lg:hidden flex items-center gap-1.5 bg-[#F7F3EE] border border-[#E8DFD5] px-3 py-1.5 rounded-xl text-xs font-bold text-[#6D523E] btn-press">
+          <svg class="w-4 h-4 text-[#9C7B63]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+          <span>待送單</span>
+          <span id="headerCartBadge" class="bg-[#9C7B63] text-white px-1.5 py-0.5 rounded-full text-[11px]">0</span>
+        </button>
+      </div>
+
+      <!-- 主功能分頁籤 -->
+      <nav class="grid grid-cols-4 md:flex bg-[#F7F3EE] p-1 rounded-2xl border border-[#E8DFD5] gap-1 w-full md:w-auto">
+        <button onclick="window.switchView('order')" id="nav-order" class="nav-tab flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+          <span>點餐作業</span>
+        </button>
+
+        <button onclick="window.switchView('history')" id="nav-history" class="nav-tab relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <span>歷史紀錄</span>
+          <span id="pendingBadge" class="hidden absolute top-0 right-0 -mt-1 sm:-mr-1 bg-[#C85A53] text-white text-[10px] sm:text-[11px] font-black min-w-[16px] sm:min-w-[18px] h-4 sm:h-[18px] px-1 rounded-full flex items-center justify-center shadow-sm">0</span>
+        </button>
+
+        <button onclick="window.switchView('stats')" id="nav-stats" class="nav-tab flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+          <span>數量統計</span>
+        </button>
+
+        <button onclick="window.switchView('edit')" id="nav-edit" class="nav-tab flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+          <span>菜單編輯</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主要內容區 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-10 relative">
+    
+    <!-- 全域載入遮罩 (等待資料庫初始化) -->
+    <div id="loadingOverlay" class="absolute inset-0 bg-[#F7F3EE] z-20 flex flex-col items-center justify-center rounded-3xl">
+      <div class="w-12 h-12 border-4 border-[#E8DFD5] border-t-[#9C7B63] rounded-full animate-spin"></div>
+      <p class="mt-4 text-[#8C7A6B] font-bold text-sm">系統啟動中...</p>
+    </div>
+
+    <!-- ==================== 1. 點餐作業視圖 ==================== -->
+    <section id="view-order" class="hidden animate-panel flex flex-col lg:flex-row gap-5 items-start w-full">
+      <!-- 左側：分類頁籤與點餐區 -->
+      <div class="w-full lg:flex-1 min-w-0 space-y-4">
+        <div id="categoryTabsContainer" class="flex flex-wrap sm:flex-nowrap sm:overflow-x-auto gap-1.5 sm:gap-2 pb-1 no-scrollbar"></div>
+        <div id="orderMenuContent" class="bg-white rounded-3xl p-4 sm:p-6 border border-[#E8DFD5] shadow-sm w-full min-w-0 min-h-[400px]"></div>
+      </div>
+
+      <!-- 右側：目前訂單與結帳區 -->
+      <aside id="cartPanel" class="w-full lg:w-[380px] flex-shrink-0 bg-white rounded-3xl border border-[#E8DFD5] shadow-sm overflow-hidden lg:sticky lg:top-24">
+        <div class="bg-[#FAF7F2] p-4 sm:p-5 border-b border-[#E8DFD5] space-y-3.5">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base sm:text-lg font-black text-[#6D523E] flex items-center gap-2">
+              <svg class="w-5 h-5 text-[#9C7B63]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+              本筆點餐明細
+            </h2>
+            <span id="cartCountBadge" class="bg-[#9C7B63] text-white text-xs font-bold px-2.5 py-1 rounded-full">0 份</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 p-1 bg-[#EFE9E1] rounded-2xl border border-[#E8DFD5]">
+            <button type="button" id="btnTypeDineIn" onclick="window.setOrderType('內用')" class="py-2 rounded-xl text-sm font-bold transition-all btn-press">內用</button>
+            <button type="button" id="btnTypeTakeout" onclick="window.setOrderType('外帶')" class="py-2 rounded-xl text-sm font-bold transition-all btn-press">外帶</button>
+          </div>
+
+          <div id="guestCountSection" class="bg-white p-3 rounded-2xl border border-[#E8DFD5] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-[#6D523E]">內用人數</span>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="window.changeGuests(-1)" class="w-8 h-8 rounded-xl bg-[#F7F3EE] hover:bg-[#E8DFD5] text-[#6D523E] font-black flex items-center justify-center btn-press">-</button>
+                <span id="guestCountDisplay" class="w-8 text-center font-black text-base text-[#6D523E]">1</span>
+                <button type="button" onclick="window.changeGuests(1)" class="w-8 h-8 rounded-xl bg-[#F7F3EE] hover:bg-[#E8DFD5] text-[#6D523E] font-black flex items-center justify-center btn-press">+</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-6 gap-1.5">
+              <button type="button" onclick="window.setGuests(1)" class="guest-quick-btn py-1.5 rounded-lg text-xs font-bold border border-[#E8DFD5] bg-[#FAF7F2] text-[#6D523E] hover:border-[#9C7B63]">1人</button>
+              <button type="button" onclick="window.setGuests(2)" class="guest-quick-btn py-1.5 rounded-lg text-xs font-bold border border-[#E8DFD5] bg-[#FAF7F2] text-[#6D523E] hover:border-[#9C7B63]">2人</button>
+              <button type="button" onclick="window.setGuests(3)" class="guest-quick-btn py-1.5 rounded-lg text-xs font-bold border border-[#E8DFD5] bg-[#FAF7F2] text-[#6D523E] hover:border-[#9C7B63]">3人</button>
+              <button type="button" onclick="window.setGuests(4)" class="guest-quick-btn py-1.5 rounded-lg text-xs font-bold border border-[#E8DFD5] bg-[#FAF7F2] text-[#6D523E] hover:border-[#9C7B63]">4人</button>
+              <button type="button" onclick="window.setGuests(5)" class="guest-quick-btn py-1.5 rounded-lg text-xs font-bold border border-[#E8DFD5] bg-[#FAF7F2] text-[#6D523E] hover:border-[#9C7B63]">5人</button>
+              <button type="button" onclick="window.setGuests(6)" class="guest-quick-btn py-1.5 rounded-lg text-xs font-bold border border-[#E8DFD5] bg-[#FAF7F2] text-[#6D523E] hover:border-[#9C7B63]">6+</button>
+            </div>
+          </div>
+
+          <div class="bg-white p-3 rounded-2xl border border-[#E8DFD5] space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <label for="pagerInput" class="text-xs font-bold text-[#6D523E] whitespace-nowrap">號碼機號碼</label>
+              <input id="pagerInput" type="text" inputmode="numeric" placeholder="輸入或點下方數字" oninput="window.syncPagerInput(this.value)"
+                class="w-full min-w-0 text-right bg-[#F7F3EE] border border-[#E8DFD5] rounded-xl px-3 py-1.5 text-base font-black text-[#6D523E] focus:outline-none focus:border-[#9C7B63]" />
+            </div>
+            <div class="grid grid-cols-6 gap-1">
+              <button type="button" onclick="window.appendPagerDigit('1')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">1</button>
+              <button type="button" onclick="window.appendPagerDigit('2')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">2</button>
+              <button type="button" onclick="window.appendPagerDigit('3')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">3</button>
+              <button type="button" onclick="window.appendPagerDigit('4')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">4</button>
+              <button type="button" onclick="window.appendPagerDigit('5')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">5</button>
+              <button type="button" onclick="window.clearPagerDigit()" class="py-1.5 rounded-lg bg-[#FBECEB] hover:bg-[#F5D6D4] border border-[#E8C5C2] text-xs font-bold text-[#C85A53] btn-press">清除</button>
+              <button type="button" onclick="window.appendPagerDigit('6')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">6</button>
+              <button type="button" onclick="window.appendPagerDigit('7')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">7</button>
+              <button type="button" onclick="window.appendPagerDigit('8')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">8</button>
+              <button type="button" onclick="window.appendPagerDigit('9')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">9</button>
+              <button type="button" onclick="window.appendPagerDigit('0')" class="py-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">0</button>
+              <button type="button" onclick="window.backspacePagerDigit()" class="py-1.5 rounded-lg bg-[#EFE9E1] hover:bg-[#E8DFD5] border border-[#E8DFD5] text-xs font-bold text-[#6D523E] btn-press">←</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="cartItemsList" class="p-3 sm:p-4 max-h-[340px] overflow-y-auto space-y-2.5 bg-white"></div>
+
+        <div class="p-4 sm:p-5 bg-[#FAF7F2] border-t border-[#E8DFD5] space-y-3">
+          <div class="flex items-center justify-between px-1">
+            <span class="text-sm font-bold text-[#8C7A6B]">訂單總金額</span>
+            <span id="cartTotalDisplay" class="text-2xl sm:text-3xl font-black text-[#6D523E]">$0</span>
+          </div>
+          <button type="button" onclick="window.submitOrder()" class="w-full py-3.5 rounded-2xl bg-[#6D523E] hover:bg-[#574030] text-white font-black text-base sm:text-lg shadow-md transition-all flex items-center justify-center gap-2 btn-press">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+            送出訂單
+          </button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ==================== 2. 歷史紀錄視圖 ==================== -->
+    <section id="view-history" class="hidden animate-panel max-w-4xl mx-auto w-full space-y-5">
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-[#E8DFD5] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg sm:text-xl font-black text-[#6D523E]">訂單歷史紀錄與出餐排程</h2>
+          <p class="text-xs sm:text-sm text-[#8C7A6B] mt-0.5">多設備即時雲端同步。依照送單時間排序。</p>
+        </div>
+        <div class="flex bg-[#F7F3EE] p-1 rounded-2xl border border-[#E8DFD5] self-start sm:self-auto">
+          <button type="button" id="histFilterPending" onclick="window.setHistoryFilter('pending')" class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all">
+            製作中 (<span id="histPendingCount">0</span>)
+          </button>
+          <button type="button" id="histFilterCompleted" onclick="window.setHistoryFilter('completed')" class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all">
+            已完成 (<span id="histCompletedCount">0</span>)
+          </button>
+        </div>
+      </div>
+      <div id="historyOrdersContainer" class="space-y-4"></div>
+    </section>
+
+    <!-- ==================== 3. 數量統計視圖 ==================== -->
+    <section id="view-stats" class="hidden animate-panel max-w-4xl mx-auto w-full space-y-5">
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-[#E8DFD5] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg sm:text-xl font-black text-[#6D523E]">今日配料數量統計</h2>
+          <p class="text-xs sm:text-sm text-[#8C7A6B] mt-0.5">雲端資料即時加總，包含所有有效訂單之配料。</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-2.5 sm:gap-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-[#E8DFD5] shadow-sm text-center">
+          <span class="text-[11px] sm:text-xs font-bold text-[#8C7A6B] block">今日有效單數</span>
+          <span id="statTotalOrders" class="text-xl sm:text-3xl font-black text-[#6D523E] mt-1 block">0</span>
+        </div>
+        <div class="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-[#E8DFD5] shadow-sm text-center">
+          <span class="text-[11px] sm:text-xs font-bold text-[#8C7A6B] block">今日有效營業額</span>
+          <span id="statTotalRevenue" class="text-xl sm:text-3xl font-black text-[#9C7B63] mt-1 block">$0</span>
+        </div>
+        <div class="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-[#E8DFD5] shadow-sm text-center">
+          <span class="text-[11px] sm:text-xs font-bold text-[#8C7A6B] block">配料總消耗份數</span>
+          <span id="statTotalToppings" class="text-xl sm:text-3xl font-black text-[#5B8C6E] mt-1 block">0</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-[#E8DFD5] shadow-sm">
+        <h3 class="text-base font-black text-[#6D523E] mb-4 flex items-center gap-2">
+          <span class="w-1.5 h-5 rounded-full bg-[#9C7B63]"></span> 各配料點選數量排行
+        </h3>
+        <div id="statsListContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- ==================== 4. 菜單編輯視圖 ==================== -->
+    <section id="view-edit" class="hidden animate-panel max-w-4xl mx-auto w-full space-y-5">
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-[#E8DFD5] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full min-w-0">
+        <div class="min-w-0">
+          <h2 class="text-lg sm:text-xl font-black text-[#6D523E]">菜單與價格編輯</h2>
+          <p class="text-xs sm:text-sm text-[#8C7A6B] mt-0.5">所有修改皆會即時同步至雲端與其他設備。</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" onclick="window.addCategory()" class="px-4 py-2 rounded-xl bg-[#9C7B63] hover:bg-[#82644E] text-white text-xs sm:text-sm font-bold shadow-sm transition-all btn-press">+ 新增大分類</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-[#E8DFD5] shadow-sm w-full min-w-0">
+        <h3 class="text-base font-black text-[#6D523E] mb-3 flex items-center gap-2">
+          <span class="w-1.5 h-5 rounded-full bg-[#9C7B63]"></span> 自選基底設定
+        </h3>
+        <div id="editBasesContainer" class="space-y-2.5 w-full min-w-0"></div>
+      </div>
+      <div id="editCategoriesContainer" class="space-y-4 w-full min-w-0"></div>
+    </section>
+
+  </main>
+
+  <!-- 手機版底部浮動購物車提示條 -->
+  <div id="mobileStickyBar" class="lg:hidden fixed bottom-3 left-3 right-3 z-20 bg-[#6D523E] text-white rounded-2xl px-4 py-3 shadow-xl flex items-center justify-between border border-[#9C7B63]">
+    <div onclick="window.scrollToCart()" class="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+      <div class="bg-[#9C7B63] px-2.5 py-1 rounded-xl text-xs font-black whitespace-nowrap"><span id="stickyBarCount">0</span> 項</div>
+      <div class="truncate">
+        <span class="text-xs text-[#E8DFD5] block leading-none">目前累計</span>
+        <span id="stickyBarTotal" class="text-lg font-black leading-tight">$0</span>
+      </div>
+    </div>
+    <button type="button" onclick="window.scrollToCart()" class="bg-[#F7F3EE] text-[#6D523E] px-4 py-2 rounded-xl text-xs font-black shadow-sm btn-press whitespace-nowrap">前往結帳 ↓</button>
+  </div>
+
+  <!-- 套餐換料彈窗 -->
+  <div id="swapModal" class="hidden fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-3xl border border-[#E8DFD5] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-panel">
+      <div class="bg-[#9C7B63] text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
+        <div class="min-w-0 pr-2">
+          <h3 id="swapModalTitle" class="text-lg font-black truncate">套餐配料調整</h3>
+          <p id="swapModalSubtitle" class="text-xs text-[#F7F3EE]/90 mt-0.5">點擊配料按鈕即可自由更換或加料</p>
+        </div>
+        <button type="button" onclick="window.closeSwapModal()" class="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center flex-shrink-0">✕</button>
+      </div>
+      <div class="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
+        <div id="swapOriginalBox" class="bg-[#FAF7F2] p-3 rounded-2xl border border-[#E8DFD5] text-xs text-[#8C7A6B]"></div>
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-black text-[#6D523E]">目前配料內容</span>
+            <button type="button" onclick="window.resetSwapToppings()" class="text-xs font-bold text-[#9C7B63] hover:underline">恢復原套餐配料</button>
+          </div>
+          <div id="swapSelectedChips" class="min-h-[46px] p-2.5 rounded-2xl bg-[#F7F3EE] border border-[#E8DFD5] flex flex-wrap gap-1.5"></div>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <span class="text-xs font-bold text-[#9C7B63] block mb-1.5">加價配料（每樣 +$10）</span>
+            <div id="swapPremiumButtons" class="flex flex-wrap gap-1.5"></div>
+          </div>
+          <div>
+            <span class="text-xs font-bold text-[#6D523E] block mb-1.5">一般配料（每樣 +$5，同類替換不加價）</span>
+            <div id="swapRegularButtons" class="flex flex-wrap gap-1.5"></div>
+          </div>
+        </div>
+        <div id="swapSauceBox" class="hidden pt-2 border-t border-[#E8DFD5]">
+          <span class="text-xs font-bold text-[#6D523E] block mb-2">醬料加購</span>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+            <button type="button" onclick="window.setSwapSauce('none')" data-sauce="none" class="swap-sauce-btn py-2 px-2 rounded-xl text-xs font-bold border border-[#E8DFD5]">不加</button>
+            <button type="button" onclick="window.setSwapSauce('milkcap')" data-sauce="milkcap" class="swap-sauce-btn py-2 px-2 rounded-xl text-xs font-bold border border-[#E8DFD5]">加奶蓋 (+$5)</button>
+            <button type="button" onclick="window.setSwapSauce('condensed')" data-sauce="condensed" class="swap-sauce-btn py-2 px-2 rounded-xl text-xs font-bold border border-[#E8DFD5]">加煉乳 (+$5)</button>
+            <button type="button" onclick="window.setSwapSauce('both')" data-sauce="both" class="swap-sauce-btn py-2 px-2 rounded-xl text-xs font-bold border border-[#E8DFD5]">都加 (+$5)</button>
+          </div>
+        </div>
+      </div>
+      <div class="p-4 bg-[#FAF7F2] border-t border-[#E8DFD5] flex items-center gap-3 flex-shrink-0">
+        <button type="button" onclick="window.closeSwapModal()" class="px-4 py-3 rounded-2xl bg-white border border-[#E8DFD5] text-sm font-bold text-[#8C7A6B] btn-press">取消</button>
+        <button type="button" onclick="window.confirmSwapModal()" class="flex-1 py-3 rounded-2xl bg-[#6D523E] hover:bg-[#574030] text-white text-sm sm:text-base font-black shadow-md btn-press">
+          確認加入訂單（<span id="swapModalPrice">$0</span>）
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 確認對話框 -->
+  <div id="confirmModal" class="hidden fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 border border-[#E8DFD5] shadow-2xl space-y-4 animate-panel">
+      <h3 id="confirmModalTitle" class="text-lg font-black text-[#6D523E]">請確認操作</h3>
+      <p id="confirmModalMessage" class="text-sm text-[#8C7A6B] leading-relaxed"></p>
+      <div class="flex gap-2.5 pt-2">
+        <button type="button" onclick="window.closeConfirmModal()" class="flex-1 py-2.5 rounded-xl bg-[#F7F3EE] text-[#6D523E] font-bold text-sm btn-press">取消</button>
+        <button type="button" id="confirmModalOkBtn" class="flex-1 py-2.5 rounded-xl bg-[#C85A53] text-white font-bold text-sm shadow-sm btn-press">確定執行</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 浮動提示訊息 -->
+  <div id="toastBanner" class="hidden pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#4A3B32] text-white px-5 py-3 rounded-2xl shadow-xl text-xs sm:text-sm font-bold flex items-center gap-2 max-w-[92vw]">
+    <span id="toastIcon">✨</span>
+    <span id="toastText" class="whitespace-pre-line leading-snug"></span>
+  </div>
+
+  <!-- Firebase 模組化載入與系統邏輯 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // ==================== 1. 常數與預設資料 ====================
+    const PREMIUM_TOPPINGS = ['芋泥', '奶酪']; // +10 元
+    const REGULAR_TOPPINGS = ['紅豆', '綠豆', '芋圓', '薯圓', '珍珠', '愛玉', '嫩仙草', '綠茶凍', '杏仁凍', '黑糖粉粿', '荔枝寒天', '可可寒天', '硬花生']; // +5 元
+    const ALL_TOPPINGS = [...PREMIUM_TOPPINGS, ...REGULAR_TOPPINGS];
+
+    const DEFAULT_BASES = [
+      { id: 'base-ice', name: '剉冰', price: 50, quota: 5, allowSauce: true },
+      { id: 'base-grass', name: '嫩仙草', price: 45, quota: 3, allowSauce: false },
+      { id: 'base-tofu', name: '豆花', price: 40, quota: 3, allowSauce: false }
+    ];
+
+    const DEFAULT_MENU = [
+      {
+        id: 'cat-ice-cap', name: '剉冰奶蓋套餐',
+        items: [
+          { id: 'ic-1', name: 'A.紅豆泥', price: 60, defaultToppings: ['紅豆', '綠豆', '薯圓', '綠茶凍', '黑糖粉粿', '奶酪'], allowSauce: true },
+          { id: 'ic-2', name: 'B.薯芋泥', price: 60, defaultToppings: ['薯圓', '芋圓', '芋泥', '嫩仙草', '黑糖粉粿', '奶酪'], allowSauce: true },
+          { id: 'ic-3', name: 'C.芋見泥', price: 60, defaultToppings: ['綠豆', '芋圓', '芋泥', '珍珠', '黑糖粉粿', '奶酪'], allowSauce: true },
+          { id: 'ic-4', name: 'D.愛薯泥', price: 60, defaultToppings: ['愛玉', '薯圓', '芋泥', '紅豆', '黑糖粉粿', '奶酪'], allowSauce: true }
+        ]
+      },
+      { id: 'cat-ice-tea-cap', name: '剉冰紅茶奶蓋套餐', items: [{ id: 'itc-1', name: '剉冰紅茶奶蓋套餐', price: 60, defaultToppings: ['綠豆', '芋泥', '薯圓', '珍珠', '嫩仙草', '奶酪'], allowSauce: true }] },
+      {
+        id: 'cat-choco-ice', name: '巧克力奶酪剉冰套餐',
+        items: [
+          { id: 'cci-1', name: '巧克力奶酪剉冰套餐 A', price: 60, defaultToppings: ['紅豆', '綠豆', '芋泥', '薯圓', '黑糖粉粿', '奶酪'], allowSauce: true },
+          { id: 'cci-2', name: '巧克力奶酪剉冰套餐 B', price: 60, defaultToppings: ['紅豆', '綠豆', '芋泥', '薯圓', '黑糖粉粿', '奶酪'], allowSauce: true }
+        ]
+      },
+      {
+        id: 'cat-ice-milktea', name: '剉冰撞奶茶套餐',
+        items: [
+          { id: 'imt-1', name: '剉冰撞奶茶套餐 A', price: 60, defaultToppings: ['芋泥', '芋圓', '嫩仙草', '黑糖粉粿', '奶酪'], allowSauce: true },
+          { id: 'imt-2', name: '剉冰撞奶茶套餐 B', price: 60, defaultToppings: ['薯圓', '芋圓', '珍珠', '嫩仙草', '奶酪'], allowSauce: true },
+          { id: 'imt-3', name: '剉冰撞奶茶套餐 C', price: 60, defaultToppings: ['紅豆', '芋泥', '杏仁凍', '珍珠', '奶酪'], allowSauce: true }
+        ]
+      },
+      {
+        id: 'cat-other-ice', name: '其他剉冰',
+        items: [
+          { id: 'oi-1', name: '紅豆牛奶冰', price: 50, defaultToppings: [], implicitToppings: ['紅豆'] },
+          { id: 'oi-2', name: '紅豆奶蓋冰', price: 50, defaultToppings: [], implicitToppings: ['紅豆'] },
+          { id: 'oi-3', name: '綠豆牛奶冰', price: 50, defaultToppings: [], implicitToppings: ['綠豆'] },
+          { id: 'oi-4', name: '綠豆奶蓋冰', price: 50, defaultToppings: [], implicitToppings: ['綠豆'] },
+          { id: 'oi-5', name: '清冰', price: 25, defaultToppings: [], allowSauce: true }
+        ]
+      },
+      {
+        id: 'cat-tofu', name: '鹽滷豆花',
+        items: [
+          { id: 'tf-1', name: '鹽滷豆花 A', price: 40, defaultToppings: ['芋圓', '紅豆'] },
+          { id: 'tf-2', name: '鹽滷豆花 B', price: 40, defaultToppings: ['薯圓', '紅豆'] },
+          { id: 'tf-3', name: '鹽滷豆花 C', price: 40, defaultToppings: ['綠豆', '珍珠'] },
+          { id: 'tf-4', name: '純豆花', price: 30, defaultToppings: [] }
+        ]
+      },
+      {
+        id: 'cat-hot-milktea', name: '熱奶茶套餐',
+        items: [
+          { id: 'hmt-1', name: '熱奶茶套餐 A', price: 55, defaultToppings: ['芋泥', '薯圓', '嫩仙草', '黑糖粉粿', '奶酪'] },
+          { id: 'hmt-2', name: '熱奶茶套餐 B', price: 55, defaultToppings: ['薯圓', '芋圓', '珍珠', '嫩仙草', '奶酪'] },
+          { id: 'hmt-3', name: '熱奶茶套餐 C', price: 55, defaultToppings: ['紅豆', '芋泥', '杏仁凍', '珍珠', '奶酪'] }
+        ]
+      },
+      {
+        id: 'cat-grass-jelly', name: '嫩仙草套餐',
+        items: [
+          { id: 'gj-1', name: '嫩仙草套餐 A', price: 45, defaultToppings: ['芋圓', '薯圓'] },
+          { id: 'gj-2', name: '嫩仙草套餐 B', price: 45, defaultToppings: ['芋圓', '珍珠'] },
+          { id: 'gj-3', name: '嫩仙草套餐 C', price: 45, defaultToppings: ['薯圓', '珍珠'] },
+          { id: 'gj-4', name: '純嫩仙草', price: 35, defaultToppings: [] }
+        ]
+      },
+      {
+        id: 'cat-toast', name: '熱壓土司',
+        items: [
+          { id: 'ts-1', name: '雙圓起司', price: 60, defaultToppings: [], implicitToppings: ['芋圓', '薯圓'] },
+          { id: 'ts-2', name: '珍珠起司', price: 60, defaultToppings: [], implicitToppings: ['珍珠'] },
+          { id: 'ts-3', name: '紅豆+粉粿起司', price: 60, defaultToppings: [], implicitToppings: ['紅豆', '黑糖粉粿'] },
+          { id: 'ts-4', name: '芋泥起司', price: 60, defaultToppings: [], implicitToppings: ['芋泥'] },
+          { id: 'ts-5', name: '鮪魚玉米起司', price: 60, defaultToppings: [] }
+        ]
+      },
+      {
+        id: 'cat-drinks', name: '飲料',
+        items: [
+          { id: 'dr-1', name: '奶茶', price: 40, defaultToppings: [] },
+          { id: 'dr-2', name: '鮮奶茶', price: 60, defaultToppings: [] },
+          { id: 'dr-3', name: '珍珠奶茶', price: 50, defaultToppings: [], implicitToppings: ['珍珠'] },
+          { id: 'dr-4', name: '珍珠鮮奶茶', price: 60, defaultToppings: [], implicitToppings: ['珍珠'] },
+          { id: 'dr-5', name: '嫩仙草奶茶', price: 50, defaultToppings: [], implicitToppings: ['嫩仙草'] },
+          { id: 'dr-6', name: '嫩仙草鮮奶茶', price: 60, defaultToppings: [], implicitToppings: ['嫩仙草'] },
+          { id: 'dr-7', name: '奶蓋綠茶', price: 45, defaultToppings: [] },
+          { id: 'dr-8', name: '綠茶', price: 30, defaultToppings: [] },
+          { id: 'dr-9', name: '手炒黑糖愛玉冰', price: 60, defaultToppings: [], implicitToppings: ['愛玉'] }
+        ]
+      },
+      {
+        id: 'cat-winter', name: '冬季限定',
+        items: [
+          { id: 'wt-1', name: '綜合紅豆湯', price: 50, defaultToppings: ['芋圓', '薯圓', '珍珠', '黑糖粉粿'], implicitToppings: ['紅豆'] },
+          { id: 'wt-2', name: '雙圓紅豆湯', price: 40, defaultToppings: ['芋圓', '薯圓'], implicitToppings: ['紅豆'] },
+          { id: 'wt-3', name: '原味紅豆湯', price: 30, defaultToppings: [], implicitToppings: ['紅豆'] },
+          { id: 'wt-4', name: '燒仙草套餐 A', price: 45, defaultToppings: ['芋圓', '紅豆', '黑糖粉粿'] },
+          { id: 'wt-5', name: '燒仙草套餐 B', price: 45, defaultToppings: ['珍珠', '紅豆', '黑糖粉粿'] },
+          { id: 'wt-6', name: '燒仙草套餐 C', price: 45, defaultToppings: ['綠豆', '紅豆', '薯圓'] },
+          { id: 'wt-7', name: '純燒仙草', price: 30, defaultToppings: [] }
+        ]
+      }
+    ];
+
+    // ==================== 2. 全域狀態 ====================
+    let state = {
+      view: 'order',              
+      activeCategoryTab: 'custom',
+      menu: [],
+      bases: [],
+      orders: [],
+      quotas: JSON.parse(localStorage.getItem('bingYuanWu_quotas') || '{}'),
+      cart: [],
+      orderType: '內用',          
+      guestsCount: 1,
+      pagerNum: '',
+      customBaseId: 'base-ice',
+      customToppings: [],         
+      customSauce: 'none',        
+      swapItem: null,
+      swapToppings: [],
+      swapSauce: 'none',
+      historyFilter: 'pending',   
+      confirmCallback: null
+    };
+
+    let fbApp, fbDb, fbAuth, fbUserId;
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'bingyuanwu-pos';
+
+    // ==================== 3. Firebase 啟動與雲端同步 ====================
+    async function initFirebase() {
+      const fbConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+        // Fallback for independent usage if needed, otherwise rely on injected config
+      };
+      
+      try {
+        fbApp = initializeApp(fbConfig);
+        // 啟用離線持久化 (Offline Persistence) 支援多標籤頁
+        fbDb = initializeFirestore(fbApp, {
+          localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+        });
+        fbAuth = getAuth(fbApp);
+
+        // 驗證流程
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(fbAuth, __initial_auth_token);
+        } else {
+          await signInAnonymously(fbAuth);
+        }
+        
+        onAuthStateChanged(fbAuth, (user) => {
+          if (user) {
+            fbUserId = user.uid;
+            setupRealtimeSync();
+          }
+        });
+      } catch (err) {
+        console.error("Firebase 初始化失敗：", err);
+        showToast("雲端連線失敗，請檢查網路狀態", "❌");
+        document.getElementById('loadingOverlay').classList.add('hidden');
+      }
+    }
+
+    function setupRealtimeSync() {
+      // 同步網路狀態 UI
+      window.addEventListener('online', () => { document.body.classList.remove('is-offline'); document.getElementById('syncStatus').classList.remove('bg-gray-400'); document.getElementById('syncStatus').classList.add('bg-green-500'); });
+      window.addEventListener('offline', () => { document.body.classList.add('is-offline'); document.getElementById('syncStatus').classList.remove('bg-green-500'); document.getElementById('syncStatus').classList.add('bg-gray-400'); });
+      if (!navigator.onLine) document.body.classList.add('is-offline');
+
+      // 監聽菜單設定 (Menu / Bases)
+      const configRef = doc(fbDb, 'artifacts', appId, 'users', fbUserId, 'config', 'menuData');
+      onSnapshot(configRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          state.menu = data.menu || [];
+          state.bases = data.bases || [];
+        } else {
+          state.menu = JSON.parse(JSON.stringify(DEFAULT_MENU));
+          state.bases = JSON.parse(JSON.stringify(DEFAULT_BASES));
+          syncConfigToCloud(); // 寫入預設資料
+        }
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        renderAllViews();
+      }, (error) => {
+        console.error("菜單同步錯誤", error);
+      });
+
+      // 監聽訂單
+      const ordersCol = collection(fbDb, 'artifacts', appId, 'users', fbUserId, 'orders');
+      onSnapshot(ordersCol, (snapshot) => {
+        state.orders = snapshot.docs.map(doc => ({ fbId: doc.id, ...doc.data() }));
+        updatePendingBadges();
+        if (state.view === 'history') window.renderHistoryView();
+        if (state.view === 'stats') window.renderStatsView();
+      }, (error) => {
+        console.error("訂單同步錯誤", error);
+      });
+    }
+
+    function syncConfigToCloud() {
+      if (!fbUserId || !fbDb) return;
+      setDoc(doc(fbDb, 'artifacts', appId, 'users', fbUserId, 'config', 'menuData'), {
+        menu: state.menu,
+        bases: state.bases
+      }, { merge: true }).catch(console.error);
+    }
+
+    // ==================== 4. 價格引擎 ====================
+    function countToppingTypes(toppingsArr) {
+      let premium = 0, regular = 0;
+      (toppingsArr || []).forEach(t => PREMIUM_TOPPINGS.includes(t) ? premium++ : regular++);
+      return { premium, regular };
+    }
+
+    function getSaucePrice(sauce) { return (sauce === 'milkcap' || sauce === 'condensed' || sauce === 'both') ? 5 : 0; }
+    function getSauceLabel(sauce) { return sauce === 'milkcap' ? '加奶蓋' : sauce === 'condensed' ? '加煉乳' : sauce === 'both' ? '奶蓋+煉乳' : ''; }
+
+    function calculateCustomBowlPrice() {
+      const base = state.bases.find(b => b.id === state.customBaseId) || state.bases[0];
+      if (!base) return 0;
+      const { premium, regular } = countToppingTypes(state.customToppings);
+      const extraRegular = Math.max(0, regular - Number(base.quota || 0));
+      return Number(base.price) + (extraRegular * 5) + (premium * 10) + (base.allowSauce ? getSaucePrice(state.customSauce) : 0);
+    }
+
+    function calculateSwapItemPrice(item, selectedToppings, sauce) {
+      if (!item) return 0;
+      const orig = countToppingTypes(item.defaultToppings || []);
+      const curr = countToppingTypes(selectedToppings || []);
+      const extraRegular = Math.max(0, curr.regular - orig.regular);
+      const extraPremium = Math.max(0, curr.premium - orig.premium);
+      return Number(item.price) + (extraRegular * 5) + (extraPremium * 10) + (item.allowSauce ? getSaucePrice(sauce) : 0);
+    }
+
+    // ==================== 5. 共用 UI 互動掛載 ====================
+    let toastTimer = null;
+    function showToast(message, icon = '✨', duration = 1500) {
+      const banner = document.getElementById('toastBanner');
+      document.getElementById('toastText').innerText = message;
+      document.getElementById('toastIcon').textContent = icon;
+      banner.classList.remove('hidden');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => banner.classList.add('hidden'), duration);
+    }
+
+    window.closeConfirmModal = function() {
+      document.getElementById('confirmModal').classList.add('hidden');
+      state.confirmCallback = null;
+    }
+
+    document.getElementById('confirmModalOkBtn').addEventListener('click', () => {
+      if (typeof state.confirmCallback === 'function') state.confirmCallback();
+      window.closeConfirmModal();
+    });
+
+    function openConfirmModal(title, message, onConfirm) {
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalMessage').textContent = message;
+      state.confirmCallback = onConfirm;
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    // ==================== 6. 核心渲染與邏輯 ====================
+    function renderAllViews() {
+      if (state.view === 'order') window.renderOrderView();
+      if (state.view === 'history') window.renderHistoryView();
+      if (state.view === 'stats') window.renderStatsView();
+      if (state.view === 'edit') window.renderEditView();
+    }
+
+    window.switchView = function(viewName) {
+      state.view = viewName;
+      ['order', 'history', 'stats', 'edit'].forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        const navBtn = document.getElementById(`nav-${v}`);
+        if (v === viewName) {
+          el.classList.remove('hidden');
+          navBtn.classList.add('bg-[#9C7B63]', 'text-white', 'shadow-sm');
+          navBtn.classList.remove('text-[#6D523E]', 'hover:bg-[#EFE9E1]');
+        } else {
+          el.classList.add('hidden');
+          navBtn.classList.remove('bg-[#9C7B63]', 'text-white', 'shadow-sm');
+          navBtn.classList.add('text-[#6D523E]', 'hover:bg-[#EFE9E1]');
+        }
+      });
+      document.getElementById('mobileStickyBar').classList.toggle('hidden', viewName !== 'order');
+      renderAllViews();
+    };
+
+    function updatePendingBadges() {
+      const pendingCount = state.orders.filter(o => o.status === 'pending').length;
+      const badge = document.getElementById('pendingBadge');
+      
+      if (badge) {
+        badge.textContent = pendingCount;
+        badge.classList.toggle('hidden', pendingCount === 0);
+      }
+    }
+
+    // --- 點餐作業 ---
+    window.renderOrderView = function() {
+      renderCategoryTabs();
+      window.renderOrderContent();
+      window.renderCartPanel();
+    }
+
+    function renderCategoryTabs() {
+      const container = document.getElementById('categoryTabsContainer');
+      const tabs = [{ id: 'custom', name: '✨ 自選配料' }, ...state.menu.map(c => ({ id: c.id, name: c.name }))];
+      container.innerHTML = tabs.map(tab => `
+        <button type="button" onclick="window.selectCategoryTab('${tab.id}')"
+          class="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all border btn-press ${
+            state.activeCategoryTab === tab.id ? 'bg-[#6D523E] text-white border-[#6D523E] shadow-sm' : 'bg-white text-[#6D523E] border-[#E8DFD5] hover:border-[#9C7B63]'
+          }">
+          ${escapeHtml(tab.name)}
+        </button>
+      `).join('');
+    }
+
+    window.selectCategoryTab = function(tabId) {
+      state.activeCategoryTab = tabId;
+      renderCategoryTabs();
+      window.renderOrderContent();
+    }
+
+    window.renderOrderContent = function() {
+      const container = document.getElementById('orderMenuContent');
+      if (state.activeCategoryTab === 'custom') {
+        const currentBase = state.bases.find(b => b.id === state.customBaseId) || state.bases[0];
+        if (!currentBase) { container.innerHTML = '<p class="text-center text-[#8C7A6B] py-10">請先至「菜單編輯」設定自選基底</p>'; return; }
+        state.customBaseId = currentBase.id;
+        const minQuota = Number(currentBase.quota || 0);
+        
+        let slotsHtml = '';
+        for (let i = 0; i < 8; i++) {
+          const topping = state.customToppings[i];
+          if (topping) {
+            const isPrem = PREMIUM_TOPPINGS.includes(topping);
+            slotsHtml += `<button type="button" onclick="window.removeCustomToppingAt(${i})" class="relative aspect-square rounded-2xl border-2 border-[#9C7B63] bg-white shadow-xs flex flex-col items-center justify-center p-1 text-center btn-press group"><span class="text-xs sm:text-sm font-black leading-tight break-words ${isPrem?'text-[#9C7B63]':'text-[#4A3B32]'}">${escapeHtml(topping)}</span>${isPrem?'<span class="text-[10px] font-bold text-[#9C7B63] mt-0.5">+$10</span>':''}<span class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#C85A53] text-white text-[10px] font-bold flex items-center justify-center shadow-xs">✕</span></button>`;
+          } else {
+            const isReq = i < minQuota;
+            slotsHtml += `<div class="aspect-square rounded-2xl border-2 border-dashed ${isReq?'border-[#C9B5A3] bg-[#FAF7F2]':'border-[#E8DFD5] bg-[#FAF7F2]/50'} flex flex-col items-center justify-center p-1 text-center"><span class="text-[11px] font-bold text-[#B39E8C]">欄位 ${i + 1}</span>${isReq?'<span class="text-[9px] text-[#9C7B63] font-bold mt-0.5">基本</span>':''}</div>`;
+          }
+        }
+
+        container.innerHTML = `
+          <div class="space-y-6">
+            <div>
+              <h3 class="text-sm sm:text-base font-black text-[#6D523E] mb-3 flex items-center gap-2"><span class="w-1.5 h-5 rounded-full bg-[#9C7B63]"></span> 1. 選擇基底</h3>
+              <div class="grid grid-cols-3 gap-2.5 sm:gap-3">
+                ${state.bases.map(b => `<button type="button" onclick="window.selectCustomBase('${b.id}')" class="p-3 sm:p-4 rounded-2xl border-2 text-center transition-all btn-press ${b.id===currentBase.id?'border-[#9C7B63] bg-[#FAF7F2] shadow-xs':'border-[#E8DFD5] bg-white hover:border-[#C9B5A3]'}"><span class="block text-sm sm:text-lg font-black text-[#4A3B32]">${escapeHtml(b.name)}</span><span class="block text-[11px] text-[#8C7A6B] mt-0.5">最少選 ${b.quota} 樣</span><span class="block text-sm sm:text-base font-black text-[#9C7B63] mt-1">$${b.price}</span></button>`).join('')}
+              </div>
+            </div>
+            <div class="bg-[#FAF7F2] p-3.5 sm:p-5 rounded-2xl border border-[#E8DFD5] space-y-4">
+              <div class="flex items-center justify-between gap-2">
+                <div><h3 class="text-sm sm:text-base font-black text-[#6D523E]">2. 點選配料</h3><p class="text-xs mt-0.5 font-bold ${state.customToppings.length>=minQuota?'text-[#5B8C6E]':'text-[#C85A53]'}">已選 ${state.customToppings.length} 樣（最少需 ${minQuota} 樣）</p></div>
+                <button type="button" onclick="window.clearCustomToppings()" class="px-3 py-1.5 rounded-xl bg-white border border-[#E8DFD5] text-xs font-bold text-[#8C7A6B] hover:text-[#C85A53] btn-press">清空</button>
+              </div>
+              <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">${slotsHtml}</div>
+              <div>
+                <span class="text-xs font-bold text-[#9C7B63] block mb-2">加價配料（+$10）</span>
+                <div class="flex flex-wrap gap-2">${PREMIUM_TOPPINGS.map(t=>`<button onclick="window.addCustomTopping('${t}')" class="px-3.5 py-2 rounded-xl bg-[#FFF6EE] border border-[#DFC3AA] text-xs sm:text-sm font-black text-[#8A6245] shadow-2xs btn-press">${escapeHtml(t)} <span class="text-[11px] opacity-85">+$10</span></button>`).join('')}</div>
+              </div>
+              <div>
+                <span class="text-xs font-bold text-[#6D523E] block mb-2">一般配料（額外+$5）</span>
+                <div class="flex flex-wrap gap-2">${REGULAR_TOPPINGS.map(t=>`<button onclick="window.addCustomTopping('${t}')" class="px-3.5 py-2 rounded-xl bg-white border border-[#E8DFD5] text-xs sm:text-sm font-bold text-[#4A3B32] shadow-2xs btn-press">${escapeHtml(t)}</button>`).join('')}</div>
+              </div>
+            </div>
+            ${currentBase.allowSauce ? `
+              <div>
+                <h3 class="text-sm sm:text-base font-black text-[#6D523E] mb-2.5 flex items-center gap-2"><span class="w-1.5 h-5 rounded-full bg-[#9C7B63]"></span> 3. 醬料</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  ${[{id:'none',label:'不加(預設)'},{id:'milkcap',label:'加奶蓋(+$5)'},{id:'condensed',label:'加煉乳(+$5)'},{id:'both',label:'都加(+$5)'}].map(s=>`<button onclick="window.setCustomSauce('${s.id}')" class="py-2.5 px-3 rounded-xl border-2 text-xs sm:text-sm font-bold btn-press ${state.customSauce===s.id?'border-[#9C7B63] bg-[#FAF7F2] text-[#6D523E]':'border-[#E8DFD5] bg-white text-[#8C7A6B]'}">${s.label}</button>`).join('')}
+                </div>
+              </div>
+            ` : ''}
+            <div class="pt-2 border-t border-[#E8DFD5]">
+              <button onclick="window.addCustomBowlToCart()" class="w-full py-3.5 sm:py-4 rounded-2xl bg-[#9C7B63] hover:bg-[#846650] text-white font-black text-base sm:text-lg shadow-md transition-all flex justify-center items-center gap-2 btn-press">+ 加入自選（$${calculateCustomBowlPrice()}）</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const category = state.menu.find(c => c.id === state.activeCategoryTab);
+      if (!category || !category.items || category.items.length === 0) {
+        container.innerHTML = `<div class="text-center py-12 text-[#8C7A6B] text-sm font-bold">此分類目前尚無品項。</div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="mb-4 flex items-center justify-between"><h2 class="text-base sm:text-lg font-black text-[#6D523E]">${escapeHtml(category.name)}</h2><span class="text-xs text-[#8C7A6B]">點擊加入</span></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          ${category.items.map(item => {
+            const hasPreset = (item.defaultToppings && item.defaultToppings.length > 0) || item.allowSauce;
+            return `
+              <button onclick="window.handleMenuItemTap('${category.id}', '${item.id}')" class="text-left p-4 rounded-2xl border-2 border-[#E8DFD5] hover:border-[#9C7B63] bg-[#FAF7F2]/60 hover:bg-white transition-all flex flex-col justify-between min-h-[104px] shadow-2xs btn-press group">
+                <div>
+                  <div class="flex items-start justify-between gap-2"><h4 class="font-black text-base text-[#4A3B32] group-hover:text-[#6D523E] leading-snug">${escapeHtml(item.name)}</h4><span class="text-lg font-black text-[#9C7B63] flex-shrink-0">$${item.price}</span></div>
+                  ${item.defaultToppings?.length ? `<p class="text-xs text-[#8C7A6B] mt-1.5 leading-relaxed">配料：${item.defaultToppings.join('、')}</p>` : ''}
+                </div>
+                <div class="mt-3 flex justify-end"><span class="text-[11px] font-bold px-2.5 py-1 rounded-lg ${hasPreset?'bg-white border border-[#DFC3AA] text-[#8A6245] group-hover:bg-[#9C7B63] group-hover:text-white':'bg-[#EFE9E1] text-[#6D523E] group-hover:bg-[#6D523E] group-hover:text-white'} transition-colors">${hasPreset?'換料/加入':'+ 直接加入'}</span></div>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    window.selectCustomBase = function(b) { state.customBaseId = b; state.customSauce = 'none'; window.renderOrderContent(); }
+    window.addCustomTopping = function(t) { if(state.customToppings.length>=8){showToast('欄位已滿','⚠️');return;} state.customToppings.push(t); window.renderOrderContent(); }
+    window.removeCustomToppingAt = function(i) { state.customToppings.splice(i, 1); window.renderOrderContent(); }
+    window.clearCustomToppings = function() { state.customToppings = []; window.renderOrderContent(); }
+    window.setCustomSauce = function(s) { state.customSauce = s; window.renderOrderContent(); }
+    
+    window.addCustomBowlToCart = function() {
+      const base = state.bases.find(b => b.id === state.customBaseId) || state.bases[0];
+      const minQuota = Number(base.quota || 0);
+      if (state.customToppings.length < minQuota) { showToast(`最少需選 ${minQuota} 樣`, '⚠️'); return; }
+      
+      const price = calculateCustomBowlPrice();
+      const sauceText = base.allowSauce && state.customSauce !== 'none' ? `（${getSauceLabel(state.customSauce)}）` : '';
+      
+      addItemToCart({
+        name: `自選${base.name}${sauceText}`, unitPrice: price, qty: 1, toppings: [...state.customToppings], note: '自選配料'
+      });
+      
+      state.customToppings = []; state.customSauce = 'none'; window.renderOrderContent();
+      showToast(`已加入：自選${base.name}`, '🍧');
+    }
+
+    window.handleMenuItemTap = function(catId, itemId) {
+      const item = state.menu.find(c => c.id === catId)?.items.find(i => i.id === itemId);
+      if (!item) return;
+      if ((item.defaultToppings && item.defaultToppings.length > 0) || item.allowSauce) {
+        window.openSwapModal(item);
+      } else {
+        addItemToCart({ name: item.name, unitPrice: Number(item.price), qty: 1, toppings: [...(item.implicitToppings || [])], note: '' });
+        showToast(`已加入：${item.name}`, '✨');
+      }
+    }
+
+    // --- 彈窗換料 ---
+    window.openSwapModal = function(item) {
+      state.swapItem = item;
+      state.swapToppings = [...(item.defaultToppings || [])];
+      state.swapSauce = 'none';
+      document.getElementById('swapModalTitle').textContent = `${item.name}（$${item.price}）`;
+      document.getElementById('swapOriginalBox').innerHTML = `<span class="font-bold text-[#6D523E]">原配料：</span>${item.defaultToppings?.length ? item.defaultToppings.join('、') : '無'}`;
+      document.getElementById('swapSauceBox').classList.toggle('hidden', !item.allowSauce);
+      window.renderSwapModalContent();
+      document.getElementById('swapModal').classList.remove('hidden');
+    }
+    window.closeSwapModal = function() { document.getElementById('swapModal').classList.add('hidden'); state.swapItem = null; }
+    window.resetSwapToppings = function() { state.swapToppings = [...(state.swapItem.defaultToppings || [])]; state.swapSauce = 'none'; window.renderSwapModalContent(); }
+    window.removeSwapToppingAt = function(i) { state.swapToppings.splice(i, 1); window.renderSwapModalContent(); }
+    window.addSwapTopping = function(t) { if(state.swapToppings.length>=8){showToast('單碗最多8樣','⚠️');return;} state.swapToppings.push(t); window.renderSwapModalContent(); }
+    window.setSwapSauce = function(s) { state.swapSauce = s; window.renderSwapModalContent(); }
+
+    window.renderSwapModalContent = function() {
+      const chips = document.getElementById('swapSelectedChips');
+      chips.innerHTML = state.swapToppings.length ? state.swapToppings.map((t, idx) => `<button onclick="window.removeSwapToppingAt(${idx})" class="px-3 py-1.5 rounded-xl bg-white border ${PREMIUM_TOPPINGS.includes(t)?'border-[#9C7B63] text-[#8A6245]':'border-[#D8CBBF] text-[#4A3B32]'} text-xs font-bold flex items-center gap-1.5 shadow-2xs btn-press"><span>${escapeHtml(t)}</span><span class="text-[#C85A53]">✕</span></button>`).join('') : '<span class="text-xs text-[#8C7A6B] py-1">目前無配料</span>';
+      
+      document.getElementById('swapPremiumButtons').innerHTML = PREMIUM_TOPPINGS.map(t => `<button onclick="window.addSwapTopping('${t}')" class="px-3 py-1.5 rounded-xl bg-[#FFF6EE] border border-[#DFC3AA] text-xs font-black text-[#8A6245] btn-press">+ ${escapeHtml(t)} ($10)</button>`).join('');
+      document.getElementById('swapRegularButtons').innerHTML = REGULAR_TOPPINGS.map(t => `<button onclick="window.addSwapTopping('${t}')" class="px-3 py-1.5 rounded-xl bg-[#FAF7F2] border border-[#E8DFD5] text-xs font-bold text-[#4A3B32] btn-press">+ ${escapeHtml(t)}</button>`).join('');
+      
+      document.querySelectorAll('.swap-sauce-btn').forEach(btn => btn.className = `swap-sauce-btn py-2 px-2 rounded-xl text-xs font-bold border-2 btn-press ${btn.dataset.sauce===state.swapSauce?'border-[#9C7B63] bg-[#FAF7F2] text-[#6D523E]':'border-[#E8DFD5] bg-white text-[#8C7A6B]'}`);
+      document.getElementById('swapModalPrice').textContent = `$${calculateSwapItemPrice(state.swapItem, state.swapToppings, state.swapSauce)}`;
+    }
+
+    window.confirmSwapModal = function() {
+      const item = state.swapItem;
+      const finalPrice = calculateSwapItemPrice(item, state.swapToppings, state.swapSauce);
+      const sauceText = item.allowSauce && state.swapSauce !== 'none' ? `（${getSauceLabel(state.swapSauce)}）` : '';
+      const isSwapped = [...(item.defaultToppings || [])].sort().join(',') !== [...state.swapToppings].sort().join(',');
+      
+      addItemToCart({
+        name: `${item.name}${sauceText}`, unitPrice: finalPrice, qty: 1,
+        toppings: [...(item.implicitToppings || []), ...state.swapToppings],
+        displayToppings: [...state.swapToppings],
+        note: isSwapped ? '已換料' : ''
+      });
+      window.closeSwapModal();
+      showToast(`已加入：${item.name}`, '🍧');
+    }
+
+    // --- 購物車 ---
+    function addItemToCart(newItem) {
+      const key = `${newItem.name}|${newItem.unitPrice}|${(newItem.toppings||[]).join(',')}`;
+      const existing = state.cart.find(c => `${c.name}|${c.unitPrice}|${(c.toppings||[]).join(',')}` === key);
+      if (existing) existing.qty += 1;
+      else state.cart.push({ cartId: 'c-'+Date.now(), ...newItem });
+      window.renderCartPanel();
+    }
+
+    window.updateCartItemQty = function(id, d) {
+      const idx = state.cart.findIndex(c => c.cartId === id);
+      if(idx===-1) return;
+      state.cart[idx].qty += d;
+      if (state.cart[idx].qty <= 0) state.cart.splice(idx, 1);
+      window.renderCartPanel();
+    }
+    window.removeCartItem = function(id) { state.cart = state.cart.filter(c => c.cartId !== id); window.renderCartPanel(); }
+    window.setOrderType = function(t) { state.orderType = t; window.renderCartPanel(); }
+    window.setGuests = function(n) { state.guestsCount = Math.max(1, n); window.renderCartPanel(); }
+    window.changeGuests = function(d) { state.guestsCount = Math.max(1, state.guestsCount + d); window.renderCartPanel(); }
+    window.syncPagerInput = function(v) { state.pagerNum = v; }
+    window.appendPagerDigit = function(d) { if(state.pagerNum.length<6) { state.pagerNum+=d; document.getElementById('pagerInput').value = state.pagerNum; } }
+    window.clearPagerDigit = function() { state.pagerNum = ''; document.getElementById('pagerInput').value = ''; }
+    window.backspacePagerDigit = function() { state.pagerNum = state.pagerNum.slice(0,-1); document.getElementById('pagerInput').value = state.pagerNum; }
+    window.scrollToCart = function() { document.getElementById('cartPanel')?.scrollIntoView({behavior:'smooth'}); }
+
+    window.renderCartPanel = function() {
+      document.getElementById('btnTypeDineIn').className = state.orderType==='內用'?'py-2 rounded-xl text-sm font-black bg-[#9C7B63] text-white shadow-xs':'py-2 rounded-xl text-sm font-bold text-[#8C7A6B] hover:text-[#6D523E]';
+      document.getElementById('btnTypeTakeout').className = state.orderType==='外帶'?'py-2 rounded-xl text-sm font-black bg-[#9C7B63] text-white shadow-xs':'py-2 rounded-xl text-sm font-bold text-[#8C7A6B] hover:text-[#6D523E]';
+      document.getElementById('guestCountSection').classList.toggle('hidden', state.orderType!=='內用');
+      document.getElementById('guestCountDisplay').textContent = state.guestsCount;
+      document.querySelectorAll('.guest-quick-btn').forEach((btn, i) => {
+        const target = i + 1; const active = (target<6&&state.guestsCount===target) || (target===6&&state.guestsCount>=6);
+        btn.className = `guest-quick-btn py-1.5 rounded-lg text-xs font-bold border ${active?'border-[#9C7B63] bg-[#9C7B63] text-white':'border-[#E8DFD5] bg-[#FAF7F2] text-[#6D523E]'}`;
+      });
+      document.getElementById('pagerInput').value = state.pagerNum;
+      
+      const count = state.cart.reduce((s, c) => s + c.qty, 0);
+      const total = state.cart.reduce((s, c) => s + (c.unitPrice * c.qty), 0);
+      document.getElementById('cartCountBadge').textContent = `${count} 份`;
+      document.getElementById('headerCartBadge').textContent = count;
+      document.getElementById('stickyBarCount').textContent = count;
+      document.getElementById('stickyBarTotal').textContent = `$${total}`;
+      document.getElementById('cartTotalDisplay').textContent = `$${total}`;
+
+      const listEl = document.getElementById('cartItemsList');
+      if (!state.cart.length) { listEl.innerHTML = `<div class="py-10 text-center text-[#B39E8C]"><p class="text-sm font-bold">尚未加入任何餐點</p></div>`; return; }
+      
+      listEl.innerHTML = state.cart.map(item => {
+        const tops = item.displayToppings ?? item.toppings;
+        return `
+          <div class="p-3 rounded-2xl bg-[#FAF7F2] border border-[#E8DFD5] flex items-start justify-between gap-2">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5 flex-wrap"><span class="font-black text-sm text-[#4A3B32]">${escapeHtml(item.name)}</span>${item.note?`<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#EFE9E1] text-[#8A6245]">${item.note}</span>`:''}</div>
+              ${tops?.length?`<p class="text-xs text-[#8C7A6B] mt-1 break-words">配料：${tops.join('、')}</p>`:''}
+              <p class="text-xs font-black text-[#9C7B63] mt-1">$${item.unitPrice} × ${item.qty} = $${item.unitPrice * item.qty}</p>
+            </div>
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <button onclick="window.updateCartItemQty('${item.cartId}', -1)" class="w-7 h-7 rounded-lg bg-white border border-[#E8DFD5] text-[#6D523E] font-black text-xs btn-press">-</button>
+              <span class="w-5 text-center text-xs font-black text-[#4A3B32]">${item.qty}</span>
+              <button onclick="window.updateCartItemQty('${item.cartId}', 1)" class="w-7 h-7 rounded-lg bg-white border border-[#E8DFD5] text-[#6D523E] font-black text-xs btn-press">+</button>
+              <button onclick="window.removeCartItem('${item.cartId}')" class="w-7 h-7 rounded-lg bg-[#FBECEB] text-[#C85A53] text-xs font-bold ml-0.5 btn-press">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- 寫入 Firestore 訂單 (Optimistic UI) ---
+    window.submitOrder = function() {
+      if (!state.cart.length) { showToast('請先加入餐點！', '⚠️'); return; }
+      if (!state.pagerNum.trim()) { showToast('請輸入號碼機號碼！', '⚠️'); document.getElementById('pagerInput').focus(); return; }
+      if (!fbUserId || !fbDb) { showToast('系統離線或尚未登入，請重試！', '❌'); return; }
+
+      const totalAmount = state.cart.reduce((s, c) => s + (c.unitPrice * c.qty), 0);
+      const newOrder = {
+        createdAt: Date.now(),
+        dateStr: getTodayDateStr(),
+        orderType: state.orderType,
+        guestsCount: state.orderType === '內用' ? state.guestsCount : 0,
+        pagerNum: state.pagerNum.trim(),
+        items: JSON.parse(JSON.stringify(state.cart)),
+        total: totalAmount,
+        status: 'pending'
+      };
+
+      // Firestore 寫入，離線狀態也會進 Local Cache 並自動觸發 onSnapshot！
+      addDoc(collection(fbDb, 'artifacts', appId, 'users', fbUserId, 'orders'), newOrder).catch(console.error);
+
+      const sentPager = state.pagerNum.trim();
+      state.cart = []; state.pagerNum = ''; state.guestsCount = 1;
+      window.renderCartPanel();
+      showToast(`訂單送出！號碼機：${sentPager}`, '✅', 1500);
+
+      setTimeout(window.checkStockAlerts, 500);
+    }
+
+    window.checkStockAlerts = function() {
+      const todayOrders = state.orders.filter(o => o.dateStr === getTodayDateStr());
+      const countsMap = {};
+      ALL_TOPPINGS.forEach(t => countsMap[t] = 0);
+      
+      todayOrders.forEach(order => {
+        (order.items || []).forEach(item => {
+          const qty = Number(item.qty || 1);
+          (item.toppings || []).forEach(t => { countsMap[t] = (countsMap[t] || 0) + qty; });
+        });
+      });
+
+      let alerts = [];
+      ALL_TOPPINGS.forEach(t => {
+        const quota = Number(state.quotas[t]);
+        if (quota > 0) {
+          const used = countsMap[t] || 0;
+          const remain = quota - used;
+          if (remain <= 5 && remain >= 0) {
+            alerts.push(`「${t}」僅剩 ${remain} 份`);
+          }
+        }
+      });
+
+      if (alerts.length > 0) {
+        showToast(`⚠️ 備料不足提醒：\n${alerts.join('\n')}`, '🔔', 4000);
+      }
+    }
+
+    // --- 歷史紀錄與狀態更新 ---
+    window.setHistoryFilter = function(f) { state.historyFilter = f; window.renderHistoryView(); }
+    
+    window.completeAndArchiveOrder = function(orderFbId) {
+      if(!fbUserId) return;
+      updateDoc(doc(fbDb, 'artifacts', appId, 'users', fbUserId, 'orders', orderFbId), { status: 'completed', completedAt: Date.now() }).catch(console.error);
+      showToast(`訂單已完成出餐`, '✅');
+    }
+
+    window.confirmCancelAndDeductOrder = function(orderFbId) {
+      const order = state.orders.find(o => o.fbId === orderFbId);
+      if (!order || !fbUserId) return;
+      openConfirmModal('刪除訂單並扣除統計', `確定要刪除「號碼機 ${order.pagerNum} 號」嗎？今日統計將同步扣除。`, () => {
+        deleteDoc(doc(fbDb, 'artifacts', appId, 'users', fbUserId, 'orders', orderFbId)).catch(console.error);
+        showToast('已刪除並扣除統計數量', '🗑️');
+      });
+    }
+
+    window.renderHistoryView = function() {
+      const todayOrders = state.orders.filter(o => o.dateStr === getTodayDateStr()).sort((a,b) => a.createdAt - b.createdAt);
+      const pendingList = todayOrders.filter(o => o.status === 'pending');
+      const completedList = todayOrders.filter(o => o.status === 'completed');
+
+      document.getElementById('histPendingCount').textContent = pendingList.length;
+      document.getElementById('histCompletedCount').textContent = completedList.length;
+      document.getElementById('histFilterPending').className = `px-3.5 py-1.5 rounded-xl text-xs sm:text-sm transition-all ${state.historyFilter==='pending'?'font-black bg-[#9C7B63] text-white shadow-2xs':'font-bold text-[#8C7A6B]'}`;
+      document.getElementById('histFilterCompleted').className = `px-3.5 py-1.5 rounded-xl text-xs sm:text-sm transition-all ${state.historyFilter==='completed'?'font-black bg-[#9C7B63] text-white shadow-2xs':'font-bold text-[#8C7A6B]'}`;
+
+      const targetList = state.historyFilter === 'pending' ? pendingList : completedList;
+      const container = document.getElementById('historyOrdersContainer');
+
+      if (!targetList.length) { container.innerHTML = `<div class="bg-white rounded-3xl p-12 text-center border border-[#E8DFD5] text-[#B39E8C]"><p class="text-base font-black">無符合的訂單</p></div>`; return; }
+
+      container.innerHTML = targetList.map(order => {
+        const globalSeq = todayOrders.findIndex(o => o.fbId === order.fbId) + 1;
+        const timeStr = new Date(order.createdAt).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        return `
+          <div class="bg-white rounded-3xl p-4 sm:p-6 border-2 ${order.status==='pending'?'border-[#E8DFD5]':'border-[#E8DFD5]/60 opacity-85'} shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 left-0 bottom-0 w-1.5 ${order.status==='pending'?'bg-[#9C7B63]':'bg-[#5B8C6E]'}"></div>
+            <div class="flex flex-col md:flex-row gap-4 md:gap-6">
+              <div class="flex md:flex-col items-center justify-between md:justify-center md:w-36 border-b md:border-b-0 md:border-r border-[#E8DFD5] pb-3 md:pb-0 md:pr-5 gap-2">
+                <div class="flex items-center md:flex-col gap-2"><span class="px-2.5 py-0.5 rounded-lg bg-[#6D523E] text-white text-xs font-black">第 ${globalSeq} 單</span><div class="text-center"><span class="text-[11px] text-[#8C7A6B] block">號碼機</span><span class="text-2xl sm:text-4xl font-black text-[#4A3B32]">${escapeHtml(order.pagerNum)}</span></div></div>
+                <div class="flex flex-col items-end md:items-center gap-1"><span class="px-3 py-1 rounded-full text-xs font-black ${order.orderType==='內用'?'bg-[#F3E5D8] text-[#6D523E]':'bg-[#EFE9E1] text-[#8C7A6B]'}">${order.orderType}${order.orderType==='內用'?`・${order.guestsCount}人`:''}</span><span class="text-[11px] text-[#8C7A6B]">${timeStr}</span></div>
+              </div>
+              <div class="flex-1 min-w-0 space-y-2.5">
+                ${order.items.map(item => {
+                  const tops = item.displayToppings ?? item.toppings;
+                  return `<div class="flex items-start justify-between gap-2 pb-2 border-b border-[#F7F3EE] last:border-0 last:pb-0"><div class="min-w-0"><div class="flex items-center gap-1.5 flex-wrap"><span class="font-black text-sm sm:text-base text-[#4A3B32]">${escapeHtml(item.name)}</span><span class="text-xs font-black text-[#9C7B63]">× ${item.qty}</span>${item.note?`<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FAF7F2] border border-[#E8DFD5] text-[#8A6245]">${escapeHtml(item.note)}</span>`:''}</div>${tops?.length?`<p class="text-xs text-[#6D523E] mt-1 font-medium break-words">配料：${tops.join('、')}</p>`:''}</div><span class="font-bold text-sm text-[#6D523E] flex-shrink-0">$${item.unitPrice * item.qty}</span></div>`;
+                }).join('')}
+              </div>
+              <div class="md:w-44 flex flex-col justify-between gap-2.5 pt-3 md:pt-0 border-t md:border-t-0 border-[#E8DFD5]">
+                <div class="flex md:flex-col items-center md:items-end justify-between"><span class="text-xs font-bold text-[#8C7A6B]">總金額</span><span class="text-2xl font-black text-[#6D523E]">$${order.total}</span></div>
+                <div class="grid grid-cols-2 md:grid-cols-1 gap-2">
+                  ${order.status === 'pending' ? `<button onclick="window.completeAndArchiveOrder('${order.fbId}')" class="py-2.5 px-3 rounded-xl bg-[#5B8C6E] text-white text-xs font-black shadow-xs flex justify-center gap-1 btn-press">✓ 完成</button>` : `<div class="py-2 px-3 rounded-xl bg-[#EBF3EE] text-[#5B8C6E] text-xs font-black text-center">✓ 已出餐</div>`}
+                  <button onclick="window.confirmCancelAndDeductOrder('${order.fbId}')" class="py-2.5 px-3 rounded-xl bg-[#FBECEB] text-[#C85A53] border border-[#E8C5C2] text-xs font-black flex justify-center gap-1 btn-press">✕ 刪單扣帳</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- 統計視圖 ---
+    window.renderStatsView = function() {
+      const todayOrders = state.orders.filter(o => o.dateStr === getTodayDateStr());
+      let totalRevenue = 0, totalToppingPortions = 0; const countsMap = {};
+      ALL_TOPPINGS.forEach(t => countsMap[t] = 0);
+
+      todayOrders.forEach(order => {
+        totalRevenue += Number(order.total || 0);
+        (order.items || []).forEach(item => {
+          const qty = Number(item.qty || 1);
+          (item.toppings || []).forEach(t => { countsMap[t] = (countsMap[t] || 0) + qty; totalToppingPortions += qty; });
+        });
+      });
+
+      document.getElementById('statTotalOrders').textContent = todayOrders.length;
+      document.getElementById('statTotalRevenue').textContent = `$${totalRevenue}`;
+      document.getElementById('statTotalToppings').textContent = totalToppingPortions;
+
+      const sortedEntries = Object.entries(countsMap).sort((a,b) => b[1] - a[1]);
+      const maxVal = sortedEntries.length > 0 ? Math.max(1, sortedEntries[0][1]) : 1;
+
+      document.getElementById('statsListContainer').innerHTML = sortedEntries.map(([topping, count]) => {
+        const isPrem = PREMIUM_TOPPINGS.includes(topping);
+        const pct = count > 0 ? Math.max(6, Math.round((count/maxVal)*100)) : 0;
+        const currentQuota = state.quotas[topping] || '';
+        const remain = Number(currentQuota) > 0 ? Number(currentQuota) - count : null;
+        const remainAlert = remain !== null && remain <= 5 ? 'text-[#C85A53]' : 'text-[#5B8C6E]';
+
+        return `<div class="p-3.5 rounded-2xl border ${count>0?'border-[#E8DFD5] bg-[#FAF7F2]':'border-[#F0E9E1] bg-white opacity-85'} flex flex-col gap-2.5">
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5"><span class="font-black text-sm ${isPrem?'text-[#9C7B63]':'text-[#4A3B32]'}">${escapeHtml(topping)}</span>${isPrem?'<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#FFF6EE] border border-[#DFC3AA] text-[#8A6245]">$10</span>':''}</div>
+              <div class="w-full h-2 bg-[#E8DFD5] rounded-full mt-2 overflow-hidden"><div class="h-full rounded-full ${isPrem?'bg-[#9C7B63]':'bg-[#6D523E]'} transition-all" style="width: ${pct}%"></div></div>
+            </div>
+            <div class="text-right flex-shrink-0"><span class="text-xl font-black ${count>0?'text-[#4A3B32]':'text-[#B39E8C]'}">${count}</span><span class="text-[11px] text-[#8C7A6B] ml-0.5">份</span></div>
+          </div>
+          <div class="flex items-center justify-between mt-1 pt-2.5 border-t border-[#E8DFD5]/50 gap-2">
+            <div class="flex items-center gap-2">
+              <label class="text-[11px] font-bold text-[#8C7A6B] whitespace-nowrap">今日可用量</label>
+              <input type="number" min="0" value="${currentQuota}" placeholder="不限" onchange="window.updateToppingQuota('${topping}', this.value)" class="w-16 bg-white border border-[#E8DFD5] rounded-lg px-1.5 py-1 text-xs font-black text-[#6D523E] text-center focus:outline-none focus:border-[#9C7B63]" />
+            </div>
+            ${remain !== null ? `<span class="text-[11px] font-black ${remainAlert}">剩餘 ${remain}</span>` : '<span class="text-[11px] font-bold text-[#B39E8C]">未設定</span>'}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    window.updateToppingQuota = function(topping, value) {
+      const num = parseInt(value);
+      if (isNaN(num) || num <= 0) {
+        delete state.quotas[topping];
+      } else {
+        state.quotas[topping] = num;
+      }
+      localStorage.setItem('bingYuanWu_quotas', JSON.stringify(state.quotas));
+      window.renderStatsView();
+    }
+
+    window.confirmResetDailyStats = function() {
+      openConfirmModal('重置今日紀錄與統計', '確定要清空今日所有的雲端訂單紀錄與數量統計嗎？', () => {
+        const todayKey = getTodayDateStr();
+        const batchDeletes = state.orders.filter(o => o.dateStr === todayKey).map(o => deleteDoc(doc(fbDb, 'artifacts', appId, 'users', fbUserId, 'orders', o.fbId)));
+        Promise.all(batchDeletes).catch(console.error);
+        showToast('今日紀錄重置中，稍後將同步完成', '🔄');
+      });
+    }
+
+    // --- 菜單編輯視圖 (防溢出已內建於 Tailwind Classes) ---
+    window.renderEditView = function() {
+      document.getElementById('editBasesContainer').innerHTML = state.bases.map(b => `<div class="p-3 rounded-2xl bg-[#FAF7F2] border border-[#E8DFD5] grid grid-cols-12 gap-2 items-center w-full min-w-0"><div class="col-span-5 sm:col-span-6 min-w-0"><label class="text-[10px] font-bold text-[#8C7A6B] block mb-0.5">基底名稱</label><input type="text" value="${escapeHtml(b.name)}" onchange="window.updateBaseField('${b.id}', 'name', this.value)" class="w-full min-w-0 bg-white border border-[#E8DFD5] rounded-xl px-2.5 py-1.5 text-xs sm:text-sm font-bold text-[#4A3B32] focus:outline-none focus:border-[#9C7B63]" /></div><div class="col-span-4 sm:col-span-3 min-w-0"><label class="text-[10px] font-bold text-[#8C7A6B] block mb-0.5">價格 ($)</label><input type="number" min="0" value="${b.price}" onchange="window.updateBaseField('${b.id}', 'price', Number(this.value)||0)" class="w-full min-w-0 bg-white border border-[#E8DFD5] rounded-xl px-2.5 py-1.5 text-xs sm:text-sm font-black text-[#9C7B63] focus:outline-none focus:border-[#9C7B63]" /></div><div class="col-span-3 sm:col-span-3 min-w-0"><label class="text-[10px] font-bold text-[#8C7A6B] block mb-0.5">基本料數</label><input type="number" min="0" max="8" value="${b.quota}" onchange="window.updateBaseField('${b.id}', 'quota', Number(this.value)||0)" class="w-full min-w-0 bg-white border border-[#E8DFD5] rounded-xl px-2.5 py-1.5 text-xs sm:text-sm font-bold text-[#4A3B32] focus:outline-none focus:border-[#9C7B63]" /></div></div>`).join('');
+      document.getElementById('editCategoriesContainer').innerHTML = state.menu.map(cat => `<div class="bg-white rounded-3xl p-4 sm:p-6 border border-[#E8DFD5] shadow-sm space-y-4 w-full min-w-0 overflow-hidden"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[#E8DFD5] w-full min-w-0"><div class="flex items-center gap-2 flex-1 min-w-0"><span class="w-2 h-6 rounded-full bg-[#9C7B63] flex-shrink-0"></span><input type="text" value="${escapeHtml(cat.name)}" onchange="window.updateCategoryName('${cat.id}', this.value)" class="w-full min-w-0 bg-[#FAF7F2] border border-[#E8DFD5] rounded-xl px-3 py-2 text-sm sm:text-base font-black text-[#4A3B32] focus:outline-none focus:border-[#9C7B63]" /></div><div class="flex items-center gap-2 flex-shrink-0"><button onclick="window.addMenuItem('${cat.id}')" class="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#9C7B63] text-[#6D523E] text-xs font-bold btn-press">+ 新增</button><button onclick="window.confirmDeleteCategory('${cat.id}')" class="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-[#FBECEB] border border-[#E8C5C2] text-[#C85A53] text-xs font-bold btn-press">刪除</button></div></div><div class="space-y-3 w-full min-w-0">${cat.items.length?cat.items.map(item => `<div class="p-3.5 rounded-2xl bg-[#FAF7F2] border border-[#E8DFD5] space-y-3 w-full min-w-0 overflow-hidden"><div class="flex items-center gap-2 w-full min-w-0"><div class="flex-1 min-w-0"><label class="text-[10px] font-bold text-[#8C7A6B] block mb-0.5">品項名稱</label><input type="text" value="${escapeHtml(item.name)}" onchange="window.updateMenuItemField('${cat.id}', '${item.id}', 'name', this.value)" class="w-full min-w-0 bg-white border border-[#E8DFD5] rounded-xl px-2.5 py-1.5 text-xs sm:text-sm font-black text-[#4A3B32] focus:outline-none focus:border-[#9C7B63]" /></div><div class="w-20 sm:w-24 flex-shrink-0"><label class="text-[10px] font-bold text-[#8C7A6B] block mb-0.5">價格</label><input type="number" min="0" value="${item.price}" onchange="window.updateMenuItemField('${cat.id}', '${item.id}', 'price', Number(this.value)||0)" class="w-full min-w-0 bg-white border border-[#E8DFD5] rounded-xl px-2 py-1.5 text-xs sm:text-sm font-black text-center text-[#9C7B63] focus:outline-none focus:border-[#9C7B63]" /></div><div class="pt-4 flex-shrink-0"><button onclick="window.deleteMenuItem('${cat.id}', '${item.id}')" class="w-8 h-8 rounded-xl bg-white border border-[#E8DFD5] text-[#C85A53] text-xs font-bold btn-press">✕</button></div></div><div class="bg-white p-2.5 rounded-xl border border-[#E8DFD5] space-y-1.5 w-full min-w-0"><div class="flex items-center justify-between gap-2"><span class="text-[11px] font-bold text-[#6D523E]">預設配料</span>${item.defaultToppings?.length?`<button onclick="window.clearMenuItemToppings('${cat.id}', '${item.id}')" class="text-[11px] font-bold text-[#C85A53]">清空</button>`:''}</div><div class="flex flex-wrap gap-1">${ALL_TOPPINGS.map(t=>`<button onclick="window.toggleMenuItemTopping('${cat.id}', '${item.id}', '${t}')" class="px-2 py-1 rounded-lg text-[11px] font-bold border transition-all ${(item.defaultToppings||[]).includes(t)?'bg-[#9C7B63] text-white border-[#9C7B63]':'bg-[#FAF7F2] text-[#8C7A6B] border-[#E8DFD5] hover:border-[#9C7B63]'}">${escapeHtml(t)}</button>`).join('')}</div></div></div>`).join(''):'<p class="text-center text-xs text-[#8C7A6B] py-4">無品項</p>'}</div></div>`).join('');
+    }
+
+    window.updateBaseField = function(id, field, value) { const t = state.bases.find(b=>b.id===id); if(t){t[field]=value; syncConfigToCloud(); showToast('已同步基底', '☁️');} }
+    window.addCategory = function() { state.menu.push({ id: 'cat-'+Date.now(), name: '新分類', items: [] }); syncConfigToCloud(); }
+    window.updateCategoryName = function(id, name) { const c = state.menu.find(c=>c.id===id); if(c){c.name=name.trim(); syncConfigToCloud();} }
+    window.confirmDeleteCategory = function(id) { openConfirmModal('刪除分類', '確定刪除？', () => { state.menu = state.menu.filter(c=>c.id!==id); if(state.activeCategoryTab===id) state.activeCategoryTab='custom'; syncConfigToCloud(); }); }
+    window.addMenuItem = function(catId) { const c = state.menu.find(c=>c.id===catId); if(c){c.items.push({ id: 'item-'+Date.now(), name: '新品項', price: 50, defaultToppings: [] }); syncConfigToCloud();} }
+    window.updateMenuItemField = function(catId, itemId, field, value) { const i = state.menu.find(c=>c.id===catId)?.items.find(i=>i.id===itemId); if(i){i[field]=value; syncConfigToCloud();} }
+    window.deleteMenuItem = function(catId, itemId) { const c = state.menu.find(c=>c.id===catId); if(c){c.items = c.items.filter(i=>i.id!==itemId); syncConfigToCloud();} }
+    window.toggleMenuItemTopping = function(catId, itemId, topping) {
+      const i = state.menu.find(c=>c.id===catId)?.items.find(i=>i.id===itemId);
+      if(i){ if(!i.defaultToppings) i.defaultToppings=[]; const idx = i.defaultToppings.indexOf(topping); if(idx>=0) i.defaultToppings.splice(idx,1); else i.defaultToppings.push(topping); syncConfigToCloud(); }
+    }
+    window.clearMenuItemToppings = function(catId, itemId) { const i = state.menu.find(c=>c.id===catId)?.items.find(i=>i.id===itemId); if(i){i.defaultToppings=[]; syncConfigToCloud();} }
+    window.confirmResetMenu = function() { openConfirmModal('恢復預設菜單', '確定恢復系統預設配置嗎？', () => { state.menu = JSON.parse(JSON.stringify(DEFAULT_MENU)); state.bases = JSON.parse(JSON.stringify(DEFAULT_BASES)); syncConfigToCloud(); }); }
+
+    // --- 工具與啟動 ---
+    function getTodayDateStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function escapeHtml(str) { return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initFirebase();
+      window.switchView('order');
+    });
+  </script>
+</body>
+</html>
+```
